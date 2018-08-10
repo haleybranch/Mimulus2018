@@ -1,10 +1,14 @@
 # setwd("/Users/haleybranch/Desktop/Branchgithub/Mimulus2018")
 # don't need to setwd if we are all working within our local copies of the same R project folder
 
+library(tidyverse) # for data manipulation
+library(lme4) # for mixed models
+library(lmtest) # for likelihood ratio tests
+library(visreg) # for visualizing effects
+
 mydata <- na.omit(data.frame(read.csv("mimulusjuly2018.csv")))
 
 # Add in covariates
-library(tidyverse)
 wna1 <- read_csv("timeseries_lat_2010-2016.csv")
 wna2 <- wna1 %>% 
   select(ID_Year1,Latitude,Longitude,Elevation,MAT,MAP,CMD) %>% 
@@ -26,69 +30,91 @@ mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
-library(lme4) # for mixed models
-library(lmtest) # for likelihood ratio tests
-library(visreg) # for visualizing effects
 
-## Full model for fixed and random effects 
-# fixed effects = year*treatment*climate
-# random effects = family nested within site, block 
-mod1 = lmer(A ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.scaled)
-summary(mod1)
+## Full models for fixed and random effects 
+# General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
+
+# CMD
+mod1.cmd = lmer(A ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cmd)
 
 # drop 3-way
-mod1.no3way <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.scaled)
-summary(mod1.no3way)
-lrtest(mod1, mod1.no3way) # 3way significant
+mod1.cmd.no3way <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cmd.no3way)
+lrtest(mod1.cmd, mod1.cmd.no3way) # 3-way interaction is highly significant
 
-visreg(mod1, xvar="Year", by="Treatment")
-visreg(mod1, by="Year", xvar="Treatment")
-visreg(mod1, xvar="CMD.scaled", by="Treatment", overlay=TRUE) # this is a neat interaction: plants from historically wet sites do better in wet treatment, plants from historically dry sites do better in dry treatment
-visreg(mod1, xvar="CMD.scaled", by="Year") # this makes me worry that year effects could be confounded by differences in population sampling and vice versa
+visreg(mod1.cmd, xvar="Year", by="Treatment")
+visreg(mod1.cmd, xvar="Year", by="Treatment", overlay=T)
+visreg(mod1.cmd, by="Year", xvar="Treatment")
+visreg(mod1.cmd, by="Year", xvar="Treatment", overlay=T) # more variation among years apparent under wet than dry treatment, but no simple temporal progression
+visreg(mod1.cmd, xvar="CMD.scaled", by="Treatment", overlay=TRUE) # this is a neat interaction: plants sampled from wet sites x years do better in wet treatment, plants sampled from dry sites x years do better in dry treatment
+visreg(mod1.cmd, xvar="CMD.scaled", by="Year") # cline is positive in some early years, switches to more consistently negative in recent years
+visreg(mod1.cmd, xvar="CMD.scaled", by="Year", overlay=T) # cline is positive in some early years, switches to more consistently negative in recent years
+
+# MAP
+mod1.map = lmer(A ~ Treatment*Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.map)
+
+# drop 3-way
+mod1.map.no3way <- lmer(A ~ Treatment*Year + Treatment*MAP.scaled + Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.map.no3way)
+lrtest(mod1.map, mod1.map.no3way) # 3-way interaction is highly significant
+
+visreg(mod1.map, xvar="Year", by="Treatment")
+visreg(mod1.map, xvar="Year", by="Treatment", overlay=T)
+visreg(mod1.map, by="Year", xvar="Treatment")
+visreg(mod1.map, by="Year", xvar="Treatment", overlay=T) # more variation among years apparent under wet than dry treatment, but no simple temporal progression
+visreg(mod1.map, xvar="MAP.scaled", by="Treatment", overlay=TRUE) # this is a neat interaction: plants sampled from wet sites x years do better in wet treatment, plants sampled from dry sites x years do better in dry treatment
+visreg(mod1.map, xvar="MAP.scaled", by="Year") # 2013 is poorly sampled, should probably exclude
+visreg(mod1.map, xvar="MAP.scaled", by="Year", overlay=T) # heterogeneity among years but no simple temporal progression
 
 
-## with only 2010 and 2016
 
-#Subset by year
+### simplify to only 2010 and 2016 (i.e. pre- and post selection)?
+
+# Subset by year
 mydata.subYear <- subset(mydata, subset = Year %in% c(2010,2016))
 
-# this time treat year as factor
-mydata.subYear.scaled <- mydata.subYear %>% 
+# Rescale
+mydata.subYear <- mydata.subYear %>% 
   mutate(Latitude.scaled = scale(Latitude),
-         MAT.scaled = scale(MAT),
-         MAP.scaled = scale(MAP),
-         CMD.scaled = scale(CMD))
-mydata.subYear.scaled$Year <- as.factor(mydata.subYear.scaled$Year)
+    MAT.scaled = scale(MAT),
+    MAP.scaled = scale(MAP),
+    CMD.scaled = scale(CMD))
+# Make sure factors are set correctly
+mydata$Year <- as.factor(mydata$Year)
+mydata$Site <- as.factor(mydata$Site)
+mydata$Block <- as.factor(mydata$Block)
+mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
-## Full model for fixed and random effects 
-# fixed effects = year*treatment*climate
-# random effects = family nested within site, block 
-mod1 = lmer(A ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-summary(mod1)
+## Full models for fixed and random effects 
+# General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
+mod2.cmd = lmer(A ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.cmd)
 
 # drop 3-way
-mod1.no3way <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-summary(mod1.no3way)
-lrtest(mod1, mod1.no3way) # 3way NS
+mod2.cmd.no3way <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.cmd.no3way)
+lrtest(mod2.cmd, mod2.cmd.no3way) # 3way NS
 
 # drop 2-ways
-mod1.noTbyY <- lmer(A ~ Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.no3way, mod1.noTbyY) # Treatment x Year NS
-mod1.noTbyC <- lmer(A ~ Treatment*Year + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.no3way, mod1.noTbyC) # Treatment x CMD NS
-mod1.noYbyC <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.no3way, mod1.noYbyC) # Year x CMD NS
+mod2.cmd.noTbyY <- lmer(A ~ Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.no3way, mod2.cmd.noTbyY) # Treatment x Year NS
+mod2.cmd.noTbyC <- lmer(A ~ Treatment*Year + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.no3way, mod2.cmd.noTbyC) # Treatment x CMD NS
+mod2.cmd.noYbyC <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.no3way, mod2.cmd.noYbyC) # Year x CMD NS
 
 # drop main effects
-mod1.mains <- lmer(A ~ Treatment + CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-mod1.noT <- lmer(A ~ CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.mains, mod1.noT) #  Treatment significant
-mod1.noC <- lmer(A ~ Treatment + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.mains, mod1.noC) #  CMD not significant
-mod1.noY <- lmer(A ~ Treatment + CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear.scaled)
-lrtest(mod1.mains, mod1.noY) #  Year not significant
+mod2.cmd.mains <- lmer(A ~ Treatment + CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+mod2.cmd.noT <- lmer(A ~ CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.mains, mod2.cmd.noT) #  Treatment significant
+mod2.cmd.noC <- lmer(A ~ Treatment + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.mains, mod2.cmd.noC) #  CMD not significant
+mod2.cmd.noY <- lmer(A ~ Treatment + CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cmd.mains, mod2.cmd.noY) #  Year not significant
 
-visreg(mod1.mains, xvar="Treatment") #lower photo in wet??
+visreg(mod2.cmd.mains, xvar="Treatment") #lower photo in wet?? maybe we need to include measurement day as a covariate?
 
 
 
