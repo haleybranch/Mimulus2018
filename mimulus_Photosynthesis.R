@@ -1,8 +1,9 @@
 # setwd("/Users/haleybranch/Desktop/Branchgithub/Mimulus2018")
+# don't need to setwd if we are all working within our local copies of the same R project folder
 
 mydata <- na.omit(data.frame(read.csv("mimulusjuly2018.csv")))
 
-#Add in yearly weather variables
+# Add in covariates
 library(tidyverse)
 wna1 <- read_csv("timeseries_lat_2010-2016.csv")
 wna2 <- wna1 %>% 
@@ -12,49 +13,18 @@ wna2$Site <- as.factor(wna2$Site)
 wna2$Year <- as.numeric(wna2$Year)
 mydata <- left_join(mydata, wna2, by=c("Site", "Year"))
 
-# I want S11, S15, S32, S07 for years 2010 and 2016
-#Call names for subsetting
-names(mydata)
-#Subset by year
-mydata.subYear <- subset(mydata, subset = Year %in% c(2010,2016))
-#Subset year by site
-mydata.finalsub <- subset(mydata.subYear, subset = Site %in% c("S11","S15","S32","S07"))
-#print check
-mydata.finalsub
-mydata.finalsub <- na.omit(data.frame(mydata.finalsub))
-str(mydata.finalsub)
-
-
-
-mydata.finalsub$Plant.ID <- as.factor(mydata.finalsub$Plant.ID)
-mydata.finalsub$Block <- as.factor(mydata.finalsub$Block) 
-mydata.finalsub$Site <- as.factor(mydata.finalsub$Site)
-mydata.finalsub$Year <- as.factor(mydata.finalsub$Year)
-
-
-## ggplot
-
-library(tidyverse)
-library(Hmisc)
-library(lme4)
-library(nlme)
-
-ggplot(data=mydata.finalsub, aes(x=Site, y=A)) +
-  geom_boxplot(aes(color=Treatment)) + ### potentially add a column that puts site and block together
-  facet_wrap(~Year+Block) 
-
-ggplot(data=mydata.finalsub, aes(x=Plant.ID, y=A)) +
-  geom_point(aes(color=Treatment)) +
-  geom_line(aes(group=Year))
-
-# get variables scaled before running models
-mydata.scaled <- mydata %>% 
-  mutate(#Year.scaled = scale(Year),
+# Scale variables before running models
+mydata <- mydata %>% 
+  mutate(#Year.scaled = scale(Year), #treat year as category instead?
         Latitude.scaled = scale(Latitude),
         MAT.scaled = scale(MAT),
         MAP.scaled = scale(MAP),
         CMD.scaled = scale(CMD))
-mydata.scaled$Year <- as.factor(mydata.scaled$Year)
+# Make sure factors are set correctly
+mydata$Year <- as.factor(mydata$Year)
+mydata$Site <- as.factor(mydata$Site)
+mydata$Block <- as.factor(mydata$Block)
+mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
 library(lme4) # for mixed models
 library(lmtest) # for likelihood ratio tests
@@ -120,5 +90,43 @@ lrtest(mod1.mains, mod1.noY) #  Year not significant
 
 visreg(mod1.mains, xvar="Treatment") #lower photo in wet??
 
+
+
+
+### haley's initial work
+# I want S11, S15, S32, S07 for years 2010 and 2016
+#Call names for subsetting
+names(mydata)
+#Subset by year
+mydata.subYear <- subset(mydata, subset = Year %in% c(2010,2016))
+#Subset year by site
+mydata.finalsub <- subset(mydata.subYear, subset = Site %in% c("S11","S15","S32","S07"))
+#print check
+mydata.finalsub
+mydata.finalsub <- na.omit(data.frame(mydata.finalsub))
+str(mydata.finalsub)
+
+
+
+mydata.finalsub$Plant.ID <- as.factor(mydata.finalsub$Plant.ID)
+mydata.finalsub$Block <- as.factor(mydata.finalsub$Block) 
+mydata.finalsub$Site <- as.factor(mydata.finalsub$Site)
+mydata.finalsub$Year <- as.factor(mydata.finalsub$Year)
+
+
+## ggplot
+
+library(tidyverse)
+library(Hmisc)
+library(lme4)
+library(nlme)
+
+ggplot(data=mydata.finalsub, aes(x=Site, y=A)) +
+  geom_boxplot(aes(color=Treatment)) + ### potentially add a column that puts site and block together
+  facet_wrap(~Year+Block) 
+
+ggplot(data=mydata.finalsub, aes(x=Plant.ID, y=A)) +
+  geom_point(aes(color=Treatment)) +
+  geom_line(aes(group=Year))
 
 
