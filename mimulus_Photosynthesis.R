@@ -1,4 +1,4 @@
-setwd("/Users/haleybranch/Desktop/LICOR 6800")
+setwd("/Users/haleybranch/Desktop/Branchgithub/Mimulus2018")
 # I want S11, S15, S32, S07 for years 2010 and 2016
 mydata <- na.omit(data.frame(read.csv("mimulusjuly2018.csv")))
 #Call names for subsetting
