@@ -30,7 +30,6 @@ mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
-
 ## Full models for fixed and random effects 
 # General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
 
@@ -175,10 +174,14 @@ lrtest(mod2.mat, mod2.mat.no3way) # 3way significant
 visreg(mod2.mat, xvar="Year", by="Treatment")
 visreg(mod2.mat, xvar="Year", by="Treatment", overlay=T) # photo greater in 2016 than 2010, more plasticity in 2016 than 2010
 visreg(mod2.mat, by="Year", xvar="Treatment")
-visreg(mod2.mat, by="Year", xvar="Treatment", overlay=T) # adaptation more apparent under drought treatment than control!
+visreg(mod2.mat, by="Year", xvar="Treatment", overlay=T, 
+       points=list(col=c("gold", "aquamarine")), line=list(col=c("gold", "aquamarine"))) # adaptation more apparent under drought treatment than control!
+
+
 visreg(mod2.mat, xvar="MAT.scaled", by="Treatment", overlay=TRUE) # genotypes originating from hot conditions do better in drought treatment
 visreg(mod2.mat, xvar="MAT.scaled", by="Year")
-visreg(mod2.mat, xvar="MAT.scaled", by="Year", overlay=T) # stronger adaptation in cool sites than warm sites
+visreg(mod2.mat, xvar="MAT.scaled", by="Year", overlay=T,
+       points=list(col=c("gold", "aquamarine")), line=list(cex=1.5, col=c("gold", "aquamarine"))) # stronger adaptation in cool sites than warm sites
 
 
 
