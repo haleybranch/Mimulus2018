@@ -5,7 +5,7 @@ library(tidyverse) # for data manipulation
 library(lme4) # for mixed models
 library(lmtest) # for likelihood ratio tests
 library(visreg) # for visualizing effects
-
+mydata
 mydata <- na.omit(data.frame(read.csv("mimulusjuly2018.csv")))
 
 # Add in covariates
@@ -82,6 +82,7 @@ visreg(mod1.mat, by="Year", xvar="Treatment")
 visreg(mod1.mat, by="Year", xvar="Treatment", overlay=T) # variation among years but no simple temporal progression; effect of treatment switches between years
 visreg(mod1.mat, xvar="MAT.scaled", by="Treatment", overlay=TRUE)
 visreg(mod1.mat, xvar="MAT.scaled", by="Year")
+
 visreg(mod1.mat, xvar="MAT.scaled", by="Year", overlay=T) # heterogeneity among years but no simple temporal progression
 
 
@@ -93,9 +94,9 @@ mydata.subYear <- subset(mydata, subset = Year %in% c(2010,2016))
 # Rescale
 mydata.subYear <- mydata.subYear %>% 
   mutate(Latitude.scaled = scale(Latitude),
-    MAT.scaled = scale(MAT),
-    MAP.scaled = scale(MAP),
-    CMD.scaled = scale(CMD))
+    MAT.scaled = scale(MAT), #MAT = 
+    MAP.scaled = scale(MAP), #MAP = 
+    CMD.scaled = scale(CMD)) #CMD = 
 # Make sure factors are set correctly
 mydata$Year <- as.factor(mydata$Year)
 mydata$Site <- as.factor(mydata$Site)
@@ -182,6 +183,173 @@ visreg(mod2.mat, xvar="MAT.scaled", by="Treatment", overlay=TRUE) # genotypes or
 visreg(mod2.mat, xvar="MAT.scaled", by="Year")
 visreg(mod2.mat, xvar="MAT.scaled", by="Year", overlay=T,
        points=list(col=c("gold", "aquamarine")), line=list(cex=1.5, col=c("gold", "aquamarine"))) # stronger adaptation in cool sites than warm sites
+
+
+############### Looking at chlorophyll fluorescence
+## Full models for fixed and random effects 
+# General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
+
+# CMD
+mod1.cf.cmd = lmer(PhiPS2 ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cf.cmd)
+
+# drop 3-way
+mod1.cf.cmd.no3way <- lmer(PhiPS2 ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cf.cmd.no3way)
+lrtest(mod1.cf.cmd, mod1.cf.cmd.no3way) # 3-way interaction is highly significant
+
+visreg(mod1.cf.cmd, xvar="Year", by="Treatment")
+visreg(mod1.cf.cmd, xvar="Year", by="Treatment", overlay=T)
+visreg(mod1.cf.cmd, by="Year", xvar="Treatment")
+visreg(mod1.cf.cmd, by="Year", xvar="Treatment", overlay=T) # more variation among years apparent under wet than dry treatment, but no simple temporal progression
+visreg(mod1.cf.cmd, xvar="CMD.scaled", by="Treatment", overlay=TRUE) # this is a neat interaction: plants sampled from wet sites x years do better in wet treatment, plants sampled from dry sites x years do better in dry treatment
+visreg(mod1.cf.cmd, xvar="CMD.scaled", by="Year") # cline is positive in some early years, switches to more consistently negative in recent years
+visreg(mod1.cf.cmd, xvar="CMD.scaled", by="Year", overlay=T) # cline is positive in some early years, switches to more consistently negative in recent years
+
+# MAP
+mod1.cf.map = lmer(PhiPS2 ~ Treatment*Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cf.map)
+
+# drop 3-way
+mod1.cf.map.no3way <- lmer(PhiPS2 ~ Treatment*Year + Treatment*MAP.scaled + Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.cf.map.no3way)
+lrtest(mod1.cf.map, mod1.map.no3way) # 3-way interaction is highly significant
+
+visreg(mod1.cf.map, xvar="Year", by="Treatment")
+visreg(mod1.cf.map, xvar="Year", by="Treatment", overlay=T)
+visreg(mod1.cf.map, by="Year", xvar="Treatment")
+visreg(mod1.cf.map, by="Year", xvar="Treatment", overlay=T) # more variation among years apparent under wet than dry treatment, but no simple temporal progression
+visreg(mod1.cf.map, xvar="MAP.scaled", by="Treatment", overlay=TRUE) # this is a neat interaction: plants sampled from wet sites x years do better in wet treatment, plants sampled from dry sites x years do better in dry treatment
+visreg(mod1.cf.map, xvar="MAP.scaled", by="Year") # 2013 is poorly sampled, should probably exclude
+visreg(mod1.cf.map, xvar="MAP.scaled", by="Year", overlay=T) # heterogeneity among years but no simple temporal progression
+
+# MAT
+mod1.mat = lmer(A ~ Treatment*Year*MAT.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.mat)
+
+# drop 3-way
+mod1.mat.no3way <- lmer(A ~ Treatment*Year + Treatment*MAT.scaled + Year*MAT.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod1.mat.no3way)
+lrtest(mod1.mat, mod1.mat.no3way) # 3-way interaction is highly significant
+
+visreg(mod1.mat, xvar="Year", by="Treatment")
+visreg(mod1.mat, xvar="Year", by="Treatment", overlay=T)
+visreg(mod1.mat, by="Year", xvar="Treatment")
+visreg(mod1.mat, by="Year", xvar="Treatment", overlay=T) # variation among years but no simple temporal progression; effect of treatment switches between years
+visreg(mod1.mat, xvar="MAT.scaled", by="Treatment", overlay=TRUE)
+visreg(mod1.mat, xvar="MAT.scaled", by="Year")
+
+visreg(mod1.mat, xvar="MAT.scaled", by="Year", overlay=T) # heterogeneity among years but no simple temporal progression
+
+
+### simplify to only 2010 and 2016 (i.e. pre- and post selection)?
+
+# Subset by year
+mydata.subYear <- subset(mydata, subset = Year %in% c(2010,2016))
+
+# Rescale
+mydata.subYear <- mydata.subYear %>% 
+  mutate(Latitude.scaled = scale(Latitude),
+         MAT.scaled = scale(MAT), #MAT = 
+         MAP.scaled = scale(MAP), #MAP = 
+         CMD.scaled = scale(CMD)) #CMD = 
+# Make sure factors are set correctly
+mydata$Year <- as.factor(mydata$Year)
+mydata$Site <- as.factor(mydata$Site)
+mydata$Block <- as.factor(mydata$Block)
+mydata$Plant.ID <- as.factor(mydata$Plant.ID)
+
+mydata.subYear
+## Full models for fixed and random effects 
+# General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
+
+# CMD
+mod2.cf.cmd = lmer(PhiPS2 ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.cf.cmd)
+
+# drop 3-way
+mod2.cf.cmd.no3way <- lmer(PhiPS2 ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.cf.cmd.no3way)
+lrtest(mod2.cf.cmd, mod2.cf.cmd.no3way) # Significant
+
+# drop 2-ways
+mod2.cf.cmd.noTbyY <- lmer(PhiPS2 ~ Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.no3way, mod2.cf.cmd.noTbyY) # Treatment x Year Significant
+mod2.cf.cmd.noTbyC <- lmer(PhiPS2 ~ Treatment*Year + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.no3way, mod2.cf.cmd.noTbyC) # Treatment x CMD Significant
+mod2.cf.cmd.noYbyC <- lmer(PhiPS2 ~ Treatment*Year + Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.no3way, mod2.cf.cmd.noYbyC) # Year x CMD Significant
+
+# drop main effects
+mod2.cf.cmd.mains <- lmer(PhiPS2 ~ Treatment + CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+mod2.cf.cmd.noT <- lmer(PhiPS2 ~ CMD.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.mains, mod2.cf.cmd.noT) #  Treatment significant
+mod2.cf.cmd.noC <- lmer(PhiPS2 ~ Treatment + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.mains, mod2.cf.cmd.noC) #  CMD  significant
+mod2.cf.cmd.noY <- lmer(PhiPS2 ~ Treatment + CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.cf.cmd.mains, mod2.cf.cmd.noY) #  Year significant
+
+visreg(mod2.cf.cmd.mains, xvar="Treatment") 
+visreg(mod2.cf.cmd.mains, xvar="Treatment", by="Year")
+visreg(mod2.cf.cmd.mains, xvar="Year") #less stressed in 2016 than 2010
+
+
+# MAP
+mod2.map = lmer(A ~ Treatment*Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.map)
+
+# drop 3-way
+mod2.map.no3way <- lmer(A ~ Treatment*Year + Treatment*MAP.scaled + Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.map.no3way)
+lrtest(mod2.map, mod2.map.no3way) # 3way NS
+
+# drop 2-ways
+mod2.map.noTbyY <- lmer(A ~ Treatment*MAP.scaled + Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.no3way, mod2.map.noTbyY) # Treatment x Year NS
+mod2.map.noTbyC <- lmer(A ~ Treatment*Year + Year*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.no3way, mod2.map.noTbyC) # Treatment x MAP NS
+mod2.map.noYbyC <- lmer(A ~ Treatment*Year + Treatment*MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.no3way, mod2.map.noYbyC) # Year x MAP NS
+
+# drop main effects
+mod2.map.mains <- lmer(A ~ Treatment + MAP.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+mod2.map.noT <- lmer(A ~ MAP.scaled + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.mains, mod2.map.noT) #  Treatment significant
+mod2.map.noC <- lmer(A ~ Treatment + Year + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.mains, mod2.map.noC) #  MAP not significant
+mod2.map.noY <- lmer(A ~ Treatment + MAP.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+lrtest(mod2.map.mains, mod2.map.noY) #  Year not significant
+
+visreg(mod2.map.mains, xvar="Treatment") #lower photo in wet?? maybe we need to include measurement day as a covariate?
+
+# MAT
+mod2.mat = lmer(A ~ Treatment*Year*MAT.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.mat)
+
+# drop 3-way
+mod2.mat.no3way <- lmer(A ~ Treatment*Year + Treatment*MAT.scaled + Year*MAT.scaled + (1|Site/Plant.ID) + (1|Block), mydata.subYear)
+summary(mod2.mat.no3way)
+lrtest(mod2.mat, mod2.mat.no3way) # 3way significant
+
+visreg(mod2.mat, xvar="Year", by="Treatment")
+visreg(mod2.mat, xvar="Year", by="Treatment", overlay=T) # photo greater in 2016 than 2010, more plasticity in 2016 than 2010
+visreg(mod2.mat, by="Year", xvar="Treatment")
+visreg(mod2.mat, by="Year", xvar="Treatment", overlay=T, 
+       points=list(col=c("gold", "aquamarine")), line=list(col=c("gold", "aquamarine"))) # adaptation more apparent under drought treatment than control!
+
+
+visreg(mod2.mat, xvar="MAT.scaled", by="Treatment", overlay=TRUE) # genotypes originating from hot conditions do better in drought treatment
+visreg(mod2.mat, xvar="MAT.scaled", by="Year")
+visreg(mod2.mat, xvar="MAT.scaled", by="Year", overlay=T,
+       points=list(col=c("gold", "aquamarine")), line=list(cex=1.5, col=c("gold", "aquamarine"))) # stronger adaptation in cool sites than warm sites
+
+
+
+
+
+
+
+
 
 
 
