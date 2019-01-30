@@ -6,7 +6,7 @@ library(visreg) # for visualizing effects
 mydata_i <- na.omit(data.frame(read.csv("point_measure.csv")))
 
 
-# Add in covariates 
+# Add in covariates #
 #These covariates are only for the years 2010-2016, historical data is not included
 wna1 <- read_csv("timeseries_lat_2010-2016.csv")
 wna2 <- wna1 %>% 
