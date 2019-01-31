@@ -24,7 +24,7 @@ mydata <- mydata %>%
     MAP.scaled = scale(MAP),
     CMD.scaled = scale(CMD))
 # Make sure factors are set correctly
-mydata$Year <- as.factor(mydata$Year)
+mydata$Year <- as.factor(mydata$Year)#Daniel: should year be a factor? Shouldn't it be quantitative?
 mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
@@ -38,9 +38,10 @@ summary(mod1.cmd)
 
 # drop 3-way
 mod2 <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-summary(mod1.cmd.no3way)
-lrtest(mod1.cmd, mod1.cmd.no3way) # 3-way interaction is better fit
+summary(mod2)
+lrtest(mod1.cmd, mod2) # 3-way interaction is better fit
 
+#Daniel: Why bother with these models when we already know there is a 3-way intraction?
 mod3 <- lmer(A ~ Treatment*Year + (1|Site/Plant.ID) + (1|Block), mydata)
 mod4 <- lmer(A ~ Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
 mod5 <- lmer(A ~ Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
@@ -63,7 +64,7 @@ anova(gsw2)#treatment is highly sig < 2.2e-16 in all models
 
 visreg(gsw2, xvar="Year", by="Treatment")
 visreg(gsw2, xvar="CMD.scaled", by="Treatment") #plants from all sites have higher stomatal conductance under the dry treatment than wet, plants from dry sites do worse in the wet treatment
-visreg(gsw2, xvar="CMD.scaled", by = "Year") # This sows the shift from wetter climate (2010) to drier (2011-2014) and then back to wetter (2015-2016)
+visreg(gsw2, xvar="CMD.scaled", by = "Year") # This shows the shift from wetter climate (2010) to drier (2011-2014) and then back to wetter (2015-2016)
 
 
 #### Water potential
