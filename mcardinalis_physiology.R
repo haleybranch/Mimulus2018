@@ -33,37 +33,69 @@ mydata <- left_join(mydata_i, wna_all, by=c("Site", "Year"))
 mydata <- mydata %>% 
   mutate(#Year.scaled = scale(Year), #treat year as category instead?
     Latitude.scaled = scale(Latitude),
-    MAT.scaled = scale(MAT),
-    MAP.scaled = scale(MAP),
-    CMD.scaled = scale(CMD))
+    MAT.clim.scaled = scale(MAT.clim),
+    MAP.clim.scaled = scale(MAP.clim),
+    CMD.clim.scaled = scale(CMD.clim),    
+    MAT.weath.scaled = scale(MAT.weath),
+    MAP.weath.scaled = scale(MAP.weath),
+    CMD.weath.scaled = scale(CMD.weath),    
+    MAT.anom.scaled = scale(MAT.anom),
+    MAP.anom.scaled = scale(MAP.anom),
+    CMD.anom.scaled = scale(CMD.anom))
+
 # Make sure factors are set correctly
-mydata$Year <- as.factor(mydata$Year)#Daniel: should year be a factor? Shouldn't it be quantitative?
+mydata$Year <- as.factor(mydata$Year)
 mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
 ## Full models for fixed and random effects 
-# General model structure: fixed effects = year*treatment*climate, random effects = family nested within site, block 
+# General model structure: fixed effects = treatment*climate*anomaly, random effects = year, family nested within site, block 
 
 # CMD
-mod1.cmd= lmer(A ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
+mod1.cmd= lmer(A ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 summary(mod1.cmd)
+anova(mod1.cmd)
 
 # drop 3-way
-mod2 <- lmer(A ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-summary(mod2)
-lrtest(mod1.cmd, mod2) # 3-way interaction is better fit
+mod2.cmd <- lmer(A ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(mod2.cmd)
+lrtest(mod1.cmd, mod2.cmd) # this model is not better or worse than more complicated mod1; simplify to this one
 
-#Daniel: Why bother with these models when we already know there is a 3-way intraction?
-mod3 <- lmer(A ~ Treatment*Year + (1|Site/Plant.ID) + (1|Block), mydata)
-mod4 <- lmer(A ~ Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-mod5 <- lmer(A ~ Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-lrtest(mod1.cmd,mod2,mod3,mod4,mod5) #mod5 best fit, but mod2 also significant 
-anova(mod5) #no significant interaction 
-anova(mod2) #treatment significant < 2.2e-16 and Treatment*CMD.scaled significant 0.005664
+# Drop 2-ways singly
+##Drop Trt*anomaly
+mod3.cmd <- lmer(A ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod2.cmd,mod3.cmd) #this model is not better or worse than more complicated mod2, no support for retaining Trt*anom
+## Drop Trt*climate
+mod4.cmd <- lmer(A ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod2.cmd,mod4.cmd) # mod4 is significantly better than mod2, definitely drop Trt*clim
+mod4b.cmd <- lmer(A ~ CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod3.cmd,mod4b.cmd) # mod4b is significantly better than mod3, definitely drop Trt*clim
 
-visreg(mod2, xvar="Year", by="Treatment") #Dry treatment significantly higher assimilation rate than wet across plants from years
-visreg(mod2, xvar= "CMD.scaled", by = "Treatment") # decreased assimilation rate in plants from dry sites in both treatments, but more pronounced in wet treatment
+## Drop anom*climate
+mod5.cmd <- lmer(A ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod2.cmd,mod5.cmd) #mod5 is no better or worse than mod2, no support for retaining clim*anom
+
+# Go down to main effects only
+mod6.cmd <- lmer(A ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+# Drop Treatment
+mod7.cmd <- lmer(A ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod7.cmd, mod6.cmd) #Treatment is significant; retain it
+# Drop Climate
+mod8.cmd <- lmer(A ~ Treatment + CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod8.cmd, mod6.cmd) #Climate is not better or worse than simpler model, so drop it
+# Drop Anomaly
+mod9.cmd <- lmer(A ~ Treatment + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+mod9b.cmd <- lmer(A ~ Treatment + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod9.cmd, mod6.cmd) #Anomaly is not better or worse than simpler model, so drop it
+lrtest(mod9b.cmd, mod8.cmd) #Anomaly is not better or worse than simpler model, so drop it
+
+anova(mod9b.cmd) #no significant interaction 
+
+visreg(mod9b.cmd, xvar="Treatment") #Dry treatment significantly higher assimilation rate than wet across plants from years
+
+
+
 
 
 #gsw linear models
