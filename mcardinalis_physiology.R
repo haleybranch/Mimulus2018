@@ -43,6 +43,9 @@ mydata <- mydata %>%
     MAP.anom.scaled = scale(MAP.anom),
     CMD.anom.scaled = scale(CMD.anom))
 
+plot(CMD.anom.scaled~CMD.clim.scaled, data=mydata)
+plot(CMD.weath.scaled~CMD.clim.scaled, data=mydata)
+
 # Make sure factors are set correctly
 mydata$Year <- as.factor(mydata$Year)
 mydata$Site <- as.factor(mydata$Site)
