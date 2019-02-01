@@ -7,14 +7,27 @@ mydata_i <- na.omit(data.frame(read.csv("point_measure.csv")))
 
 
 # Add in covariates #
-#These covariates are only for the years 2010-2016, historical data is not included
+# Long-term climate for hypothesis about propensity to evolve or be plastic
+wna <- read_csv("timeseries_lat_Normal_1981_2010Y.csv") %>% 
+  select(Site=ID, MAT.clim=MAT,MAP.clim=MAP,CMD.clim=CMD)
+wna$Site <- as.factor(wna$Site)
+
+#These covariates are only for the years 2010-2016, use this to calculate anomalies
 wna1 <- read_csv("timeseries_lat_2010-2016.csv")
 wna2 <- wna1 %>% 
-  select(ID_Year1,Latitude,Longitude,Elevation,MAT,MAP,CMD) %>% 
+  select(ID_Year1,Latitude,Longitude,Elevation,MAT.weath=MAT,MAP.weath=MAP,CMD.weath=CMD) %>% 
   separate(ID_Year1, into = c("Site", "Year"), sep = "_")
 wna2$Site <- as.factor(wna2$Site)
 wna2$Year <- as.numeric(wna2$Year)
-mydata <- left_join(mydata_i, wna2, by=c("Site", "Year"))
+
+# join climate and weather 
+wna_all <- left_join(wna2, wna, by="Site") %>% 
+  mutate(CMD.anom = CMD.clim-CMD.weath,
+         MAT.anom = MAT.clim-MAT.weath,
+         MAP.anom = log(MAP.clim)-log(MAP.weath))
+
+#join them onto response variables
+mydata <- left_join(mydata_i, wna_all, by=c("Site", "Year"))
 
 # Scale variables before running models
 mydata <- mydata %>% 
