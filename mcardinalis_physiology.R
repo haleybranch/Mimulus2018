@@ -93,7 +93,7 @@ mod9b.cmd <- lmer(A ~ Treatment + (1|Year) + (1|Site/Plant.ID) + (1|Block), myda
 lrtest(mod9.cmd, mod6.cmd) #Anomaly is not better or worse than simpler model, so drop it
 lrtest(mod9b.cmd, mod8.cmd) #Anomaly is not better or worse than simpler model, so drop it
 
-anova(mod9b.cmd) #no significant interaction 
+anova(mod9b.cmd) 
 
 visreg(mod9b.cmd, xvar="Treatment") #Dry treatment significantly higher assimilation rate than wet across plants from years
 
