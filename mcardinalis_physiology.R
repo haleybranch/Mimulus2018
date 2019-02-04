@@ -117,39 +117,49 @@ visreg(gsw2, xvar="CMD.scaled", by = "Year") # This shows the shift from wetter 
 
 #### Water potential
 wpotential <- na.omit(data.frame(read.csv("waterpotentialJuly2018.csv"))) # red sensor 
-wpotential
+head(wpotential)
+tail(wpotential)
+
 # orient data longwise
 wpotential <- wpotential %>%
   gather(Bench, WP, WP1:WP4)
+head(wpotential)
 
-#add AM/PM to time 
-wpotential$Time <- paste(wpotential$Time, wpotential$AMPM)
+# add AM/PM to time 
+wpotential <- wpotential %>% 
+  mutate(Time2 = paste(Time, AMPM),
+         DateTime = paste(Measurement, Time2))
+head(wpotential)
 
-wpotential$AMPM <- NULL
+# change format to 24 hour, convert format for ggplot
+wpotential$Time3 <- as.POSIXct(strptime(wpotential$DateTime, "%Y-%m-%d %I:%M:%S %p"))
+wpotential$Day <- as.POSIXct(wpotential$Measurement)
+head(wpotential, 20)
 str(wpotential)
 
-# change format to 24 hour
-###wpotential2$Time <- format(strptime(wpotential2$Time, "%I:%M %p"), format="%H:%M:%S")
+# remove old date and time columns, 
+wpotential <- wpotential %>% 
+  select(Day, DayTime = Time3, Bench, WP)
+head(wpotential)
+tail(wpotential)
 
-head(wpotential, 20)
+# graph of raw WP by bench
+ggplot(data=wpotential, aes(x=DayTime, y=WP)) +
+  geom_point(aes(color=Bench)) 
 
-## group wet and dry tables
-
-ggplot(data=wpotential, aes(x=Time, y=WP)) +
-         geom_point(aes(color=Bench))
-
-
-#### Mean per day -> This didn't do what I hoped it would - check again
-
+# mean per day 
 wpotential.mean <- wpotential %>%
-  group_by(Measurement, Time, Bench) %>%
-  summarise(WP.mean= mean(WP))
-
+  group_by(Bench, Day) %>%
+  summarise(WP.mean = mean(WP)) %>% 
+  ungroup() %>% 
+  select(Bench, Day, WP.mean)
 head(wpotential.mean, 10)
 
-ggplot(data=wpotential.mean, aes(x=Time, y=WP.mean)) +
-  geom_point(aes(color=Bench)) +
-  facet_wrap(aes(group=Measurement))
+# graph of mean wp per day
+ggplot(data=wpotential.mean, aes(x=Day, y=WP.mean)) +
+  geom_point(aes(color=Bench))
+
+## amy stopped here
 
 
 ##### creating new subsets for days of interest
