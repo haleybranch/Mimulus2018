@@ -93,26 +93,62 @@ mod9b.cmd <- lmer(A ~ Treatment + (1|Year) + (1|Site/Plant.ID) + (1|Block), myda
 lrtest(mod9.cmd, mod6.cmd) #Anomaly is not better or worse than simpler model, so drop it
 lrtest(mod9b.cmd, mod8.cmd) #Anomaly is not better or worse than simpler model, so drop it
 
-anova(mod9b.cmd) 
-
 visreg(mod9b.cmd, xvar="Treatment") #Dry treatment significantly higher assimilation rate than wet across plants from years
 
-
+# p value - Scatterthwaite's approx p value and CI
+library(lmerTest)
+# CIs <- confint(model, method = "profile") # gives confidence intervals 
+CIs <- confint(mod9b.cmd, method = "profile")
+summary(mod9b.cmd) ## pvalue is <2e-16 for mod9b.cmd --> treatment significant
 
 
 
 #gsw linear models
-gsw1 <- lmer(gsw ~ Treatment*Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-gsw2 <- lmer(gsw ~ Treatment*Year + Treatment*CMD.scaled + Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)
-gsw3 <- lmer(gsw ~ Treatment*Year + (1|Site/Plant.ID) + (1|Block), mydata)#5.031e-06
-gsw4 <- lmer(gsw ~ Treatment*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata) #1.376e-05 
-gsw5 <- lmer(gsw ~ Year*CMD.scaled + (1|Site/Plant.ID) + (1|Block), mydata)#< 2.2e-16 
-lrtest(gsw1,gsw2,gsw3,gsw4,gsw5)
-anova(gsw2)#treatment is highly sig < 2.2e-16 in all models 
 
-visreg(gsw2, xvar="Year", by="Treatment")
-visreg(gsw2, xvar="CMD.scaled", by="Treatment") #plants from all sites have higher stomatal conductance under the dry treatment than wet, plants from dry sites do worse in the wet treatment
-visreg(gsw2, xvar="CMD.scaled", by = "Year") # This shows the shift from wetter climate (2010) to drier (2011-2014) and then back to wetter (2015-2016)
+gsw1.cmd= lmer(gsw ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(gsw1.cmd)
+anova(gsw1.cmd)
+
+# drop 3-way
+gsw2.cmd <- lmer(gsw ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+summary(gsw2.cmd)
+lrtest(gsw1.cmd, gsw2.cmd) # this model is better than more complicated mod1; simplify to this one
+
+# Drop 2-ways singly
+##Drop Trt*anomaly
+gsw3.cmd <- lmer(gsw ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw2.cmd,gsw3.cmd) #this model is better than more complicated gsw2, remove Trt*anom
+## Drop Trt*climate
+gsw4.cmd <- lmer(gsw ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw2.cmd,gsw4.cmd) # gsw4 is significantly better than gsw2, drop Trt*clim
+gsw4b.cmd <- lmer(gsw ~ CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw3.cmd,gsw4b.cmd) # gsw4b is significantly better than gsw3, definitely drop Trt*clim
+
+## Drop anom*climate
+gsw5.cmd <- lmer(gsw ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw2.cmd,gsw5.cmd) #gsw5 is better than gsw2, drop clim*anom
+
+# Go down to main effects only
+gsw6.cmd <- lmer(gsw ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+# Drop Treatment
+gsw7.cmd <- lmer(gsw ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw7.cmd, gsw6.cmd) #Treatment is significant; retain it
+# Drop Climate
+gsw8.cmd <- lmer(gsw ~ Treatment + CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw8.cmd, gsw6.cmd) #Climate is not better than simpler model, keep it
+# Drop Anomaly
+gsw9.cmd <- lmer(gsw ~ Treatment + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(mod9.cmd, mod6.cmd) #Anomaly is not better or worse than simpler model, so drop it
+gsw9b.cmd <- lmer(gsw ~ Treatment + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
+lrtest(gsw9b.cmd, gsw9.cmd) #Anomaly is not better or worse than simpler model, so drop it
+
+visreg(gsw9.cmd, xvar="Treatment") #Dry treatment significantly higher stomatal conductance rate than wet across plants from years
+
+# p value - Scatterthwaite's approx p value and CI
+library(lmerTest)
+# CIs <- confint(model, method = "profile") # gives confidence intervals 
+CIs <- confint(gsw9.cmd, method = "profile")
+summary(gsw9.cmd) ## pvalue is <2e-16 for gsw9.cmd --> treatment significant
 
 
 #### Water potential
