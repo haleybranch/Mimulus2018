@@ -8,6 +8,8 @@ library(tidyverse) # for data manipulation
 library(lme4) # for mixed models
 library(lmtest) # for likelihood ratio tests
 library(visreg) # for visualizing effects
+library(lmerTest)
+library(MuMIn)
 
 # combining columns into single string
 aci.data <- unite_(mimulus_aci, "Curve", c("Site", "Plant", "Year", "Treatment"))
@@ -32,6 +34,16 @@ aci.fit[["S36_341_2011_D"]] <- NULL
 aci.fit[["S36_342_2011_W"]] <- NULL
 aci.fit[["S36_342_2011_D"]] <- NULL
 
+# also remove these from unique Curves list for proper indexing below
+aci.sub <- aci.sub %>% 
+  filter(Curve != "S32_335_2016_W") %>% 
+  filter(Curve!="S32_335_2016_D") %>% 
+  filter(Curve!="S36_340_2011_W") %>% 
+  filter(Curve!="S36_340_2011_D") %>% 
+  filter(Curve!="S36_341_2011_W") %>% 
+  filter(Curve!="S36_341_2011_D") %>% 
+  filter(Curve!="S36_342_2011_W") %>% 
+  filter(Curve!="S36_342_2011_D")
 
 # plotting
 plot(aci.fit[["S11_119_2010_D"]], what = c("data"))
@@ -60,10 +72,12 @@ plot(x)
 # All ACi outputs into a table
 #Creating a loop for Vcmax, Jmax, Rd, Ci.transition dataframe from ACI Curves
 
-ID_list <- matrix(unique((aci.sub$Curve)))
+
+
+ID_list <- matrix(unique((aci.sub$Curve))) 
 datalist = list()
 
-for (i in 1:120) {
+for (i in 1:length(ID_list)) {
   dat <- data.frame(ID_list[[i]], aci.fit[[i]]$pars[1,-2],aci.fit[[i]]$pars[2,-2],aci.fit[[i]]$pars[3,-2])#add here for column
   dat$Ci.transition <- aci.fit[[i]]$Ci_transition
   dat$i <- i
@@ -109,131 +123,213 @@ mydata <- left_join(aci_output, wna_all, by=c("Site", "Year"))
 # Scale variables before running models
 mydata <- mydata %>% 
   mutate(#Year.scaled = scale(Year), #treat year as category instead?
-    Latitude.scaled = scale(Latitude),
-    MAT.clim.scaled = scale(MAT.clim),
-    MAP.clim.scaled = scale(MAP.clim),
-    CMD.clim.scaled = scale(CMD.clim),    
-    MAT.weath.scaled = scale(MAT.weath),
-    MAP.weath.scaled = scale(MAP.weath),
-    CMD.weath.scaled = scale(CMD.weath),    
-    MAT.anom.scaled = scale(MAT.anom),
-    MAP.anom.scaled = scale(MAP.anom),
-    CMD.anom.scaled = scale(CMD.anom))
+    Latitude.scaled = as.vector(scale(Latitude)),
+    MAT.clim.scaled = as.vector(scale(MAT.clim)),
+    MAP.clim.scaled = as.vector(scale(MAP.clim)),
+    CMD.clim.scaled = as.vector(scale(CMD.clim)),    
+    MAT.weath.scaled = as.vector(scale(MAT.weath)),
+    MAP.weath.scaled = as.vector(scale(MAP.weath)),
+    CMD.weath.scaled = as.vector(scale(CMD.weath)),    
+    MAT.anom.scaled = as.vector(scale(MAT.anom)),
+    MAP.anom.scaled = as.vector(scale(MAP.anom)),
+    CMD.anom.scaled = as.vector(scale(CMD.anom)))
 
 plot(CMD.anom.scaled~CMD.clim.scaled, data=mydata)
 plot(CMD.weath.scaled~CMD.clim.scaled, data=mydata)
 
 # make new column grouping pre-drought (2010 and 2011) and post drought (2015-2016)
 mydata <- mydata %>%
-  mutate(prepost = ifelse(Year = "2010", "pre", 
-                      ifelse(Year = "2011", "pre", 
-                         ifelse(Year = "2015", "post",
-                            ifelse(Year = "2016", "post", NA)))))
+  mutate(PrePost = ifelse(Year == "2010", "Pre", 
+                      ifelse(Year == "2011", "Pre", 
+                         ifelse(Year == "2015", "Post",
+                            ifelse(Year == "2016", "Post", NA)))))
 
 # Make sure factors are set correctly
 mydata$Year <- as.factor(mydata$Year)
 mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
+mydata$PrePost <- as.factor(mydata$PrePost)
 
 
-
-
-##### work in progress
-aci_est$Treatment <- as.character(aci_est$Treatment)
-aci_est$Site <- as.character(aci_est$Site)
-
-ggplot(data=aci_est, aes(x=Year, y=Vcmax)) +
-  geom_point(aes(color="Treatment")) +
-  facet_wrap(aes(group="Site"))
-
-str(aci_est)
-
-aci_est$Treatment <- as.factor(aci_est$Treatment)
-aci_est$Site <- as.factor(aci_est$Site)
-
-###################
-
-# CMD for Vcmax
-Vcmax1.cmd= lmer(Vcmax ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-summary(Vcmax1.cmd)
-anova(Vcmax1.cmd)
+######## are there any group differences, regardless of climate/weather?
+Vcmax1.group= lmer(Vcmax ~ Treatment*Site*PrePost + (1|Year), mydata)
+summary(Vcmax1.group)
+anova(Vcmax1.group) #3-way significant at P<0.05
 
 # drop 3-way
-Vcmax2.cmd <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+Vcmax2.group= lmer(Vcmax ~ Treatment*Site + Site*PrePost + Treatment*PrePost + (1|Year), mydata)
+summary(Vcmax2.group)
+anova(Vcmax2.group) 
+
+model.sel(Vcmax1.group, Vcmax2.group)
+#wow, model with 3-way interaction is highly favored over reduced model
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
+
+# Can we sub Latitude for Site to make interpretation easier?
+Vcmax1.lat= lmer(Vcmax ~ Treatment*Latitude*PrePost + (1|Year), mydata)
+summary(Vcmax1.lat)
+anova(Vcmax1.lat) #3-way not significant 
+visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="D"))
+visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="W"))
+
+# drop 3-way
+Vcmax2.lat= lmer(Vcmax ~ Treatment*Latitude + Latitude*PrePost + Treatment*PrePost + (1|Year), mydata)
+summary(Vcmax2.lat)
+anova(Vcmax2.lat) 
+
+model.sel(Vcmax1.lat, Vcmax2.lat) #about 50:50 model weight, AIC almost tied 
+
+# Can we sub CMD for Site to make interpretation easier?
+Vcmax1.cmd= lmer(Vcmax ~ Treatment*CMD.clim.scaled*PrePost + (1|Year), mydata)
+summary(Vcmax1.cmd)
+anova(Vcmax1.cmd) #3-way not significant 
+visreg(Vcmax1.cmd, xvar="CMD.clim.scaled", by="PrePost", overlay=T, cond=list(Treatment="D"))
+visreg(Vcmax1.lat, xvar="CMD.clim.scaled", by="PrePost", overlay=T, cond=list(Treatment="W"))
+
+# drop 3-way
+Vcmax2.cmd= lmer(Vcmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*PrePost + Treatment*PrePost + (1|Year), mydata)
 summary(Vcmax2.cmd)
-lrtest(Vcmax1.cmd, Vcmax2.cmd) # this model is better than more complicated Vcmax1; simplify to this one
+anova(Vcmax2.cmd) 
+
+model.sel(Vcmax1.cmd, Vcmax2.cmd) #strong support for 3-way interaction
+
+##### CMD for Vcmax with anomaly
+Vcmax1.cmdanom <- lmer(Vcmax ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Vcmax1.cmdanom)
+anova(Vcmax1.cmdanom)
+
+# drop 3-way
+Vcmax2.cmdanom <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Vcmax2.cmdanom)
+lrtest(Vcmax1.cmdanom, Vcmax2.cmdanom) # this model is better than more complicated Vcmax1; simplify to this one
 
 # Drop 2-ways singly
 ##Drop Trt*anomaly
-Vcmax3.cmd <- lmer(Vcmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax2.cmd,Vcmax3.cmd) #this model is not better or worse than more complicated Vcmax2, no support for retaining Trt*anom
+Vcmax3.cmdanom <- lmer(Vcmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax2.cmdanom,Vcmax3.cmdanom) #this model is not better or worse than more complicated Vcmax2, no support for retaining Trt*anom
 ## Drop Trt*climate
-Vcmax4.cmd <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax2.cmd,Vcmax4.cmd) # Vcmax4 is not better or worse than Vcmax2, drop Trt*clim
-Vcmax4b.cmd <- lmer(Vcmax ~ CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax3.cmd,Vcmax4b.cmd) # Vcmax4b is not better or worse than Vcmax3, drop Trt*clim
+Vcmax4.cmdanom <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax2.cmdanom,Vcmax4.cmdanom) # Vcmax4 is not better or worse than Vcmax2, drop Trt*clim
+Vcmax4b.cmdanom <- lmer(Vcmax ~ CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax3.cmdanom, Vcmax4b.cmdanom) # Vcmax4b is not better or worse than Vcmax3, drop Trt*clim
 
 ## Drop anom*climate
-Vcmax5.cmd <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax2.cmd,Vcmax5.cmd) #Vcmax5 is no better or worse than Vcmax2, no support for retaining clim*anom
+Vcmax5.cmdanom <- lmer(Vcmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax2.cmdanom, Vcmax5.cmdanom) #Vcmax5 is no better or worse than Vcmax2, no support for retaining clim*anom
 
 # Go down to main effects only
-Vcmax6.cmd <- lmer(Vcmax ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+Vcmax6.cmdanom <- lmer(Vcmax ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
 # Drop Treatment
-Vcmax7.cmd <- lmer(Vcmax ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax7.cmd, Vcmax6.cmd) #Treatment not significant, keep it out
+Vcmax7.cmdanom <- lmer(Vcmax ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax7.cmdanom, Vcmax6.cmdanom) #Treatment not significant, keep it out
 
-Vcmax8.cmd <- lmer(Vcmax ~ CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax8.cmd, Vcmax7.cmd)
+Vcmax8.cmdanom <- lmer(Vcmax ~ CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax8.cmdanom, Vcmax7.cmdanom)
 
-Vcmax9.cmd <- lmer(Vcmax ~ CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Vcmax9.cmd, Vcmax7.cmd)
+Vcmax9.cmdanom <- lmer(Vcmax ~ CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Vcmax9.cmdanom, Vcmax7.cmdanom)
 
-library(lmerTest)
-summary(Vcmax7.cmd) # no significant difference
-visreg(Vcmax6.cmd, xvar="Treatment", ylab = "Vcmax")
+model.sel(Vcmax1.cmdanom, Vcmax2.cmdanom, Vcmax3.cmdanom, Vcmax4.cmdanom, Vcmax5.cmdanom, Vcmax6.cmdanom, Vcmax7.cmdanom, Vcmax8.cmdanom, Vcmax9.cmdanom)
+# top 3 models have more support than any others and have similar weights to one another: Vcmax1 (3-way), Vcmax5 (2-ways except anom*clim), and Vcmax2 (all 2-ways)
 
-ggplot(data = mydata, aes(x=Latitude, y=Vcmax, color = Year)) + geom_point() 
+visreg(Vcmax1.cmdanom, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Vcmax2.cmdanom, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Vcmax5.cmdanom, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Vcmax1.cmdanom, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Vcmax2.cmdanom, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Vcmax5.cmdanom, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
 
-### Jmax 
-Jmax1.cmd= lmer(Jmax ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+
+########## Jmax 
+
+# among groups
+Jmax1.group= lmer(Jmax ~ Treatment*Site*PrePost + (1|Year), mydata)
+summary(Jmax1.group)
+anova(Jmax1.group)
+
+Jmax2.group= lmer(Jmax ~ Treatment*Site + Treatment*PrePost + Site*PrePost + (1|Year), mydata)
+summary(Jmax2.group)
+anova(Jmax2.group)
+
+model.sel(Jmax1.group, Jmax2.group) #strong support for 3-way interaction
+visreg(Jmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
+visreg(Jmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
+
+# sub Latitude for Site
+Jmax1.lat= lmer(Jmax ~ Treatment*Latitude*PrePost + (1|Year), mydata)
+summary(Jmax1.lat)
+anova(Jmax1.lat)
+
+Jmax2.lat= lmer(Jmax ~ Treatment*Latitude + Treatment*PrePost + Latitude*PrePost + (1|Year), mydata)
+summary(Jmax2.lat)
+anova(Jmax2.lat)
+
+model.sel(Jmax1.lat, Jmax2.lat) #weak-moderate support for 3-way interaction
+
+# sub CMD for Latitude
+Jmax1.cmd= lmer(Jmax ~ Treatment*CMD.clim.scaled*PrePost + (1|Year), mydata)
 summary(Jmax1.cmd)
 anova(Jmax1.cmd)
 
-# drop 3-way
-Jmax2.cmd <- lmer(Jmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+Jmax2.cmd= lmer(Jmax ~ Treatment*CMD.clim.scaled + Treatment*PrePost + CMD.clim.scaled*PrePost + (1|Year), mydata)
 summary(Jmax2.cmd)
-lrtest(Jmax1.cmd, Jmax2.cmd) # this model is better than more complicated Jmax1; simplify to this one
+anova(Jmax2.cmd)
+
+model.sel(Jmax1.cmd, Jmax2.cmd) #strong support for 3-way interaction
+
+# CMD for Jmax with anomaly
+Jmax1.cmdanom <- lmer(Jmax ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Jmax1.cmdanom)
+anova(Jmax1.cmdanom)
+
+# drop 3-way
+Jmax2.cmdanom <- lmer(Jmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Jmax2.cmdanom)
+lrtest(Jmax1.cmdanom, Jmax2.cmdanom) # this model is better than more complicated Jmax1; simplify to this one
 
 # Drop 2-ways singly
 ##Drop Trt*anomaly
-Jmax3.cmd <- lmer(Jmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Jmax2.cmd,Jmax3.cmd) #this model is better than more complicated Jmax2, drop Trt*anom
+Jmax3.cmdanom <- lmer(Jmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Jmax2.cmdanom,Jmax3.cmdanom) #this model is better than more complicated Jmax2, drop Trt*anom
+
 ## Drop Trt*climate
-Jmax4.cmd <- lmer(Jmax ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Jmax2.cmd,Jmax4.cmd) # Jmax4 is  better or worse than Jmax2, drop Trt*clim
+Jmax4.cmdanom <- lmer(Jmax ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Jmax2.cmdanom, Jmax4.cmdanom) # Jmax4 is  better or worse than Jmax2, drop Trt*clim
 
 ## Drop anom*climate
-Jmax5.cmd <- lmer(Jmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Jmax2.cmd,Jmax5.cmd) #Jmax5 is no better or worse than Jmax2, no support for retaining clim*anom
+Jmax5.cmdanom <- lmer(Jmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Jmax2.cmdanom,Jmax5.cmdanom) #Jmax5 is no better or worse than Jmax2, no support for retaining clim*anom
 
 # Go down to main effects only
-Jmax6.cmd <- lmer(Jmax ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+Jmax6.cmdanom <- lmer(Jmax ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
 # Drop Treatment
-Jmax7.cmd <- lmer(Jmax ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Jmax7.cmd, Jmax6.cmd) #Treatment is significant, keep it
+Jmax7.cmdanom <- lmer(Jmax ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Jmax7.cmdanom, Jmax6.cmdanom) #Treatment is significant, keep it
 
 # Drop Climate
-Jmax8.cmd <- lmer(Jmax ~ Treatment + CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Jmax8.cmd, Jmax6.cmd) #Climate is not better or worse than simpler model, so drop it
-# Drop Anomaly
-Jmax9.cmd <- lmer(Jmax ~ Treatment + (1|Year) + (1|Site), mydata)
-lrtest(Jmax9.cmd, Jmax8.cmd) #Anomaly is better than simpler model, so keep it
+Jmax8.cmdanom <- lmer(Jmax ~ Treatment + CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Jmax8.cmdanom, Jmax6.cmdanom) #Climate is not better or worse than simpler model, so drop it
 
-library(lmerTest)
-summary(Jmax8.cmd)
-visreg(Jmax8.cmd, xvar="Treatment", ylab = "Jmax") #No significant difference
+# Drop Anomaly
+Jmax9.cmdanom <- lmer(Jmax ~ Treatment + (1|Year) + (1|Site), mydata)
+lrtest(Jmax9.cmdanom, Jmax8.cmdanom) #Anomaly is better than simpler model, so keep it
+
+model.sel(Jmax1.cmdanom, Jmax2.cmdanom, Jmax3.cmdanom, Jmax4.cmdanom, Jmax5.cmdanom, Jmax6.cmdanom, Jmax7.cmdanom, Jmax8.cmdanom, Jmax9.cmdanom)
+
+# top 3 models have more support than any others and have similar weights to one another: Jmax1 (3-way), Jmax1 (2-ways except anom*clim), and Jmax1 (all 2-ways)
+
+visreg(Jmax1.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Jmax2.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Jmax5.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Jmax1.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Jmax2.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Jmax5.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+
+
+### Amy stopped here - can follow similar workflow as above for Rd and Ci transition
+
 
 
 ### Rd
