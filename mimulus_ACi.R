@@ -167,14 +167,15 @@ model.sel(Vcmax1.group, Vcmax2.group)
 visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
 visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
 
-# Can we sub Latitude for Site to make interpretation easier?
+# Can we sub Latitude for Site to make interpretation easier? 
+# Don't use this one
 Vcmax1.lat= lmer(Vcmax ~ Treatment*Latitude*PrePost + (1|Year), mydata)
 summary(Vcmax1.lat)
 anova(Vcmax1.lat) #3-way not significant 
 visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="D"))
 visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="W"))
 
-# drop 3-way
+## drop 3-way
 Vcmax2.lat= lmer(Vcmax ~ Treatment*Latitude + Latitude*PrePost + Treatment*PrePost + (1|Year), mydata)
 summary(Vcmax2.lat)
 anova(Vcmax2.lat) 
