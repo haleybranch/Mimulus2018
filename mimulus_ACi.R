@@ -337,41 +337,85 @@ visreg(Jmax5.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
 
 
 ### Rd
-Rd1.cmd= lmer(Rd ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+Rd1.group = lmer(Rd ~ Treatment*Site*PrePost + (1|Year), mydata)
+summary(Rd1.group)
+anova(Rd1.group)
+
+Rd2.group= lmer(Rd ~ Treatment*Site + Treatment*PrePost + Site*PrePost + (1|Year), mydata)
+summary(Rd2.group)
+anova(Rd2.group)
+
+model.sel(Rd1.group, Rd2.group) #strong support for 3-way interaction
+visreg(Rd1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
+visreg(Rd1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
+
+
+# sub Latitude for Site
+Rd1.lat= lmer(Rd ~ Treatment*Latitude*PrePost + (1|Year), mydata)
+summary(Rd1.lat)
+anova(Rd1.lat)
+
+Rd2.lat= lmer(Rd ~ Treatment*Latitude + Treatment*PrePost + Latitude*PrePost + (1|Year), mydata)
+summary(Rd2.lat)
+anova(Rd2.lat)
+
+model.sel(Rd1.lat, Rd2.lat) #weak-moderate support for 3-way interaction
+
+# sub CMD for Latitude
+Rd1.cmd= lmer(Rd ~ Treatment*CMD.clim.scaled*PrePost + (1|Year), mydata)
 summary(Rd1.cmd)
 anova(Rd1.cmd)
 
 # drop 3-way
-Rd2.cmd <- lmer(Rd ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+Rd2.cmd <- lmer(Rd ~ Treatment*CMD.clim.scaled + Treatment*PrePost + CMD.clim.scaled*PrePost + (1|Year), mydata)
 summary(Rd2.cmd)
-lrtest(Rd1.cmd, Rd2.cmd) # this model is better than more complicated Rd1; simplify to this one
+anova(Rd2.cmd)
+
+model.sel(Rd1.cmd, Rd2.cmd)
+
+# CMD for Jmax with anomaly
+Rd1.cmdanom <- lmer(Rd ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Rd.cmdanom)
+anova(Rd1.cmdanom)
+
+# drop 3-way
+Jmax2.Rdanom <- lmer(Jmax ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+summary(Rd2.cmdanom)
+lrtest(Rd1.cmdanom, Rd2.cmdanom) # this model is better than more complicated Jmax1; simplify to this one
 
 # Drop 2-ways singly
 ##Drop Trt*anomaly
-Rd3.cmd <- lmer(Rd ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd2.cmd,Rd3.cmd) #this model is better than more complicated Rd2, drop Trt*anom
+Rd3.cmdanom <- lmer(Rd ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd2.cmdanom,Rd3.cmdanom) #this model is better than more complicated Rd2, drop Trt*anom
 ## Drop Trt*climate
-Rd4.cmd <- lmer(Rd ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd2.cmd,Rd4.cmd) # Rd4 is no better or worse than Rd2, drop Trt*clim
+Rd4.cmdanom <- lmer(Rd ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd2.cmdanom,Rd4.cmdanom) # Rd4 is no better or worse than Rd2, drop Trt*clim
 
 ## Drop anom*climate
-Rd5.cmd <- lmer(Rd ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd2.cmd,Rd5.cmd) #Rd5 is better than Rd2, drop clim*anom
+Rd5.cmdanom <- lmer(Rd ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd2.cmdanom,Rd5.cmdanom) #Rd5 is better than Rd2, drop clim*anom
 
 # Go down to main effects only
-Rd6.cmd <- lmer(Rd ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+Rd6.cmdanom <- lmer(Rd ~ Treatment + CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
 # Drop Treatment
-Rd7.cmd <- lmer(Rd ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd7.cmd, Rd6.cmd) #Treatment is not significant, remove
+Rd7.cmdanom <- lmer(Rd ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd7.cmdanom, Rd6.cmdanom) #Treatment is not significant, remove
 
 # Drop Climate
-Rd8.cmd <- lmer(Rd ~ CMD.anom.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd8.cmd, Rd7.cmd) #Climate is better than simpler model
+Rd8.cmdanom <- lmer(Rd ~ CMD.anom.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd8.cmdanom, Rd7.cmdanom) #Climate is better than simpler model
 # Drop Anomaly
-Rd9.cmd <- lmer(Rd ~ CMD.clim.scaled + (1|Year) + (1|Site), mydata)
-lrtest(Rd9.cmd, Rd7.cmd) #Anomaly is better than simpler model, so keep it
+Rd9.cmdanom <- lmer(Rd ~ CMD.clim.scaled + (1|Year) + (1|Site), mydata)
+lrtest(Rd9.cmdanom, Rd7.cmdanom) #Anomaly is better than simpler model, so keep it
 
-summary(Rd7.cmd) # not significant
+model.sel(Rd1.cmdanom, Rd2.cmdanom, Rd3.cmdanom, Rd4.cmdanom, Rd5.cmdanom, Rd6.cmdanom, Rd7.cmdanom, Rd8.cmdanom, Rd9.cmdanom)
+
+visreg(Rd1.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Rd2.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Rd5.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
+visreg(Rd1.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Rd2.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
+visreg(Rd5.cmd, xvar="CMD.anom.scaled", by="Treatment", overlay=T)
 
 ### Ci transition 
 Ci1.cmd= lmer(Ci.transition ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site), mydata)
