@@ -166,6 +166,7 @@ model.sel(Vcmax1.group, Vcmax2.group)
 #wow, model with 3-way interaction is highly favored over reduced model
 visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
 visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment=c("W", "D")))
 
 # Can we sub Latitude for Site to make interpretation easier? 
 # Don't use this one
