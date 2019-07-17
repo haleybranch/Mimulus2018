@@ -321,6 +321,8 @@ lrtest(Jmax9.cmdanom, Jmax8.cmdanom) #Anomaly is better than simpler model, so k
 model.sel(Jmax1.cmdanom, Jmax2.cmdanom, Jmax3.cmdanom, Jmax4.cmdanom, Jmax5.cmdanom, Jmax6.cmdanom, Jmax7.cmdanom, Jmax8.cmdanom, Jmax9.cmdanom)
 
 # top 3 models have more support than any others and have similar weights to one another: Jmax1 (3-way), Jmax1 (2-ways except anom*clim), and Jmax1 (all 2-ways)
+# Help: confused by this part. We looked at cmdanom not cmd for model.sel
+# Help: which one do we talk about? I'm confused here. 
 
 visreg(Jmax1.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
 visreg(Jmax2.cmd, xvar="CMD.clim.scaled", by="Treatment", overlay=T)
