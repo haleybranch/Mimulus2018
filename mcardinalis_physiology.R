@@ -52,6 +52,7 @@ mydata$Site <- as.factor(mydata$Site)
 mydata$Block <- as.factor(mydata$Block)
 mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
+
 ## Full models for fixed and random effects 
 # General model structure: fixed effects = treatment*climate*anomaly, random effects = year, family nested within site, block 
 
@@ -135,12 +136,12 @@ gsw7.cmd <- lmer(gsw ~  CMD.anom.scaled + CMD.clim.scaled + (1|Year) + (1|Site/P
 lrtest(gsw7.cmd, gsw6.cmd) #Treatment is significant; retain it
 # Drop Climate
 gsw8.cmd <- lmer(gsw ~ Treatment + CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
-lrtest(gsw8.cmd, gsw6.cmd) #Climate is not better than simpler model, keep it
+lrtest(gsw8.cmd, gsw6.cmd) #Climate is  better than simpler model, keep it
 # Drop Anomaly
 gsw9.cmd <- lmer(gsw ~ Treatment + CMD.clim.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 lrtest(mod9.cmd, mod6.cmd) #Anomaly is not better or worse than simpler model, so drop it
 gsw9b.cmd <- lmer(gsw ~ Treatment + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
-lrtest(gsw9b.cmd, gsw9.cmd) #Anomaly is not better or worse than simpler model, so drop it
+lrtest(gsw9b.cmd, gsw9.cmd) #keep climate
 
 visreg(gsw9.cmd, xvar="Treatment") #Dry treatment significantly higher stomatal conductance rate than wet across plants from years
 
@@ -149,6 +150,62 @@ library(lmerTest)
 # CIs <- confint(model, method = "profile") # gives confidence intervals 
 CIs <- confint(gsw9.cmd, method = "profile")
 summary(gsw9.cmd) ## pvalue is <2e-16 for gsw9.cmd --> treatment significant
+
+
+# make new column grouping pre-drought (2010 and 2011) and post drought (2015-2016)
+mydata <- mydata %>%
+  mutate(PrePost = ifelse(Year == "2010", "1", 
+                          ifelse(Year == "2011", "1", 
+                                 ifelse(Year == "2012", "2",
+                                 ifelse(Year == "2013", "2",
+                                 ifelse(Year == "2014", "2",
+                                 ifelse(Year == "2015", "3",
+                                        ifelse(Year == "2016", "3", NA))))))))
+
+######## are there any group differences, regardless of climate/weather?
+gsw1.group= lmer(gsw ~ Treatment*Site*PrePost + (1|Year), mydata)
+summary(gsw1.group)
+anova(gsw1.group) #treatment, site:prepost significant
+
+# drop 3-way
+Vcmax2.group= lmer(Vcmax ~ Treatment*Site + Site*PrePost + Treatment*PrePost + (1|Year), mydata)
+summary(Vcmax2.group)
+anova(Vcmax2.group) 
+
+model.sel(Vcmax1.group, Vcmax2.group)
+#wow, model with 3-way interaction is highly favored over reduced model
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="D"))
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment="W"))
+visreg(Vcmax1.group, xvar="PrePost", by="Site", cond=list(Treatment=c("W", "D")))
+
+# Can we sub Latitude for Site to make interpretation easier? 
+# Don't use this one
+Vcmax1.lat= lmer(Vcmax ~ Treatment*Latitude*PrePost + (1|Year), mydata)
+summary(Vcmax1.lat)
+anova(Vcmax1.lat) #3-way not significant 
+visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="D"))
+visreg(Vcmax1.lat, xvar="Latitude", by="PrePost", overlay=T, cond=list(Treatment="W"))
+
+## drop 3-way
+Vcmax2.lat= lmer(Vcmax ~ Treatment*Latitude + Latitude*PrePost + Treatment*PrePost + (1|Year), mydata)
+summary(Vcmax2.lat)
+anova(Vcmax2.lat) 
+
+model.sel(Vcmax1.lat, Vcmax2.lat) #about 50:50 model weight, AIC almost tied 
+
+# Can we sub CMD for Site to make interpretation easier?
+Vcmax1.cmd= lmer(Vcmax ~ Treatment*CMD.clim.scaled*PrePost + (1|Year), mydata)
+summary(Vcmax1.cmd)
+anova(Vcmax1.cmd) #3-way not significant 
+visreg(Vcmax1.cmd, xvar="CMD.clim.scaled", by="PrePost", overlay=T, cond=list(Treatment="D"))
+visreg(Vcmax1.lat, xvar="CMD.clim.scaled", by="PrePost", overlay=T, cond=list(Treatment="W"))
+
+# drop 3-way
+Vcmax2.cmd= lmer(Vcmax ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*PrePost + Treatment*PrePost + (1|Year), mydata)
+summary(Vcmax2.cmd)
+anova(Vcmax2.cmd) 
+
+model.sel(Vcmax1.cmd, Vcmax2.cmd) #strong support for 3-way interaction
 
 
 #### Water potential
