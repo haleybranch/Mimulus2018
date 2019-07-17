@@ -58,7 +58,7 @@ mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 # CMD
 mod1.cmd= lmer(A ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 summary(mod1.cmd)
-anova(mod1.cmd)
+anova(mod1.cmd) # 2 way Treatment*CMD.clim.scaled significant 
 
 # drop 3-way
 mod2.cmd <- lmer(A ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
@@ -107,7 +107,7 @@ summary(mod9b.cmd) ## pvalue is <2e-16 for mod9b.cmd --> treatment significant
 
 gsw1.cmd= lmer(gsw ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 summary(gsw1.cmd)
-anova(gsw1.cmd)
+anova(gsw1.cmd) #3-way 0.05
 
 # drop 3-way
 gsw2.cmd <- lmer(gsw ~ Treatment*CMD.anom.scaled + Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
@@ -120,7 +120,7 @@ gsw3.cmd <- lmer(gsw ~ Treatment*CMD.clim.scaled + CMD.clim.scaled*CMD.anom.scal
 lrtest(gsw2.cmd,gsw3.cmd) #this model is better than more complicated gsw2, remove Trt*anom
 ## Drop Trt*climate
 gsw4.cmd <- lmer(gsw ~ Treatment*CMD.anom.scaled + CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
-lrtest(gsw2.cmd,gsw4.cmd) # gsw4 is significantly better than gsw2, drop Trt*clim
+lrtest(gsw2.cmd,gsw4.cmd) # gsw4 is not better or worse than gsw2, drop Trt*clim
 gsw4b.cmd <- lmer(gsw ~ CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 lrtest(gsw3.cmd,gsw4b.cmd) # gsw4b is significantly better than gsw3, definitely drop Trt*clim
 
