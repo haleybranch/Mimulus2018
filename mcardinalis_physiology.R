@@ -54,6 +54,8 @@ mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
 
 ## Full models for fixed and random effects 
+mod1 = lmer(A~Treatment*Site*Year + (1|Block/Plant.ID), mydata)
+
 # General model structure: fixed effects = treatment*climate*anomaly, random effects = year, family nested within site, block 
 
 # CMD
@@ -105,7 +107,6 @@ summary(mod9b.cmd) ## pvalue is <2e-16 for mod9b.cmd --> treatment significant
 
 
 #gsw linear models
-
 gsw1.cmd= lmer(gsw ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 summary(gsw1.cmd)
 anova(gsw1.cmd) #3-way 0.05
