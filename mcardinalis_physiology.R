@@ -54,11 +54,11 @@ mydata$Plant.ID <- as.factor(mydata$Plant.ID)
 
 
 ## Full models for fixed and random effects 
-mod1 = lmer(A~Treatment*Site*Year + (1|Block/Plant.ID), mydata)
-
 # General model structure: fixed effects = treatment*climate*anomaly, random effects = year, family nested within site, block 
 
-# CMD
+# CMD 
+########### LRTEST = higher number is the better model 
+########### AIC = lower number is the better model 
 mod1.cmd= lmer(A ~ Treatment*CMD.clim.scaled*CMD.anom.scaled + (1|Year) + (1|Site/Plant.ID) + (1|Block), mydata)
 summary(mod1.cmd)
 anova(mod1.cmd) # 2 way Treatment*CMD.clim.scaled significant 
