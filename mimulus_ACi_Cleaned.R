@@ -12,7 +12,7 @@ library(visreg) # for visualizing effects
 library(lmerTest)
 library(MuMIn)
 
-# combining columns into single string
+# combining columns into single string and replaces
 aci.data <- unite_(mimulus_aci, "Curve", c("Site", "Plant", "Year", "Treatment"))
 
 # new dataframe with Curve group, Ci, A, Tleaf, PARi
